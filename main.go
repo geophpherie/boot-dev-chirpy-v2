@@ -1,13 +1,29 @@
 package main
 
 import (
+	"database/sql"
 	"net/http"
+	"os"
+
+	"github.com/geophpherie/boot-dev-chirpy-v2/internal/database"
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
-	mux := http.NewServeMux()
+	godotenv.Load()
 
-	config := apiConfig{}
+	dbUrl := os.Getenv("DB_URL")
+	db, err := sql.Open("postgres", dbUrl)
+	if err != nil {
+		panic(err)
+	}
+
+	dbQueries := database.New(db)
+
+	config := apiConfig{dbQueries: *dbQueries}
+
+	mux := http.NewServeMux()
 
 	fsHandler := config.middlewareMetricsInc(http.StripPrefix("/app", http.FileServer(http.Dir("."))))
 	mux.Handle("/app/", fsHandler)
@@ -22,7 +38,7 @@ func main() {
 		Handler: mux,
 		Addr:    ":8080"}
 
-	err := server.ListenAndServe()
+	err = server.ListenAndServe()
 	if err != nil {
 		panic(err)
 	}
