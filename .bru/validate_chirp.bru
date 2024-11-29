@@ -1,0 +1,21 @@
+meta {
+  name: validate_chirp
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:8080/api/validate_chirp
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "body": "this is my chirp lsdkjf;law j;lwjd;flkasjdlksfja;lskdjf sldjf;aoijdf;oiwjefo;iajsd;lkjfal;sdhf;asdhfiuahwiufehawiuehfalkjsdfa,snd;lkjsf;lkasdjfl;kajsdlkfja"
+  }
+}
+
+body:multipart-form {
+  body: this is my chirp
+}
