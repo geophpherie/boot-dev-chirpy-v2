@@ -1,0 +1,22 @@
+meta {
+  name: create_user
+  type: http
+  seq: 3
+}
+
+post {
+  url: http://localhost:8080/api/users
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email" : "jla@gail.com",
+    "password": "djf;sidoasdf"
+  }
+}
+
+body:multipart-form {
+  body: this is my chirp
+}

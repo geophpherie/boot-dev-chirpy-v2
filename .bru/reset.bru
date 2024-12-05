@@ -1,0 +1,15 @@
+meta {
+  name: reset
+  type: http
+  seq: 4
+}
+
+post {
+  url: http://localhost:8080/admin/reset
+  body: none
+  auth: none
+}
+
+body:multipart-form {
+  body: this is my chirp
+}

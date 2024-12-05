@@ -32,7 +32,13 @@ func main() {
 	mux.HandleFunc("POST /admin/reset", config.handlerReset)
 
 	mux.HandleFunc("GET /api/healthz", handlerReadiness)
-	mux.HandleFunc("POST /api/validate_chirp", handlerValidate)
+
+	mux.HandleFunc("POST /api/chirps", config.handlerNewChirp)
+	mux.HandleFunc("GET /api/chirps", config.handlerGetAllChirps)
+	mux.HandleFunc("GET /api/chirps/{chirpId}", config.handlerGetChirp)
+
+	mux.HandleFunc("POST /api/users", config.handlerNewUser)
+	mux.HandleFunc("POST /api/login", config.handlerLogin)
 
 	server := http.Server{
 		Handler: mux,

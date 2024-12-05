@@ -1,0 +1,22 @@
+meta {
+  name: login_user
+  type: http
+  seq: 6
+}
+
+post {
+  url: http://localhost:8080/api/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email" : "jla@gail.co",
+    "password": "djf;idoasdf"
+  }
+}
+
+body:multipart-form {
+  body: this is my chirp
+}

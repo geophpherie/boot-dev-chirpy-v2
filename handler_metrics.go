@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 )
 
 func (cfg *apiConfig) middlewareMetricsInc(next http.Handler) http.Handler {
@@ -28,8 +29,19 @@ func (cfg *apiConfig) handlerMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Write([]byte(html))
 }
 
-func (cfg *apiConfig) handlerReset(w http.ResponseWriter, _ *http.Request) {
+func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
+	if os.Getenv("PLATFORM") != "dev" {
+		jsonResponse(w, http.StatusForbidden, "")
+		return
+	}
 	cfg.fileserverHits.Store(0)
+
+	err := cfg.dbQueries.DeleteAllUsers(r.Context())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Could not delete all users!")
+		return
+	}
+
 	w.Header().Add("Content-Type", "text/plain: charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Hits: %v", cfg.fileserverHits.Load())))

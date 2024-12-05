@@ -1,0 +1,22 @@
+meta {
+  name: new_chirp
+  type: http
+  seq: 5
+}
+
+post {
+  url: http://localhost:8080/api/chirps
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "body": "I hear Mastodon is better than Chirpy. sharbert I need to migrate",
+    "user_id": "c8577663-3401-4c12-b487-122a9a013b9f"
+  }
+}
+
+body:multipart-form {
+  body: this is my chirp
+}
