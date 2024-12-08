@@ -146,6 +146,54 @@ func (cfg *apiConfig) handlerGetChirp(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusOK, response)
 }
 
+func (cfg *apiConfig) handlerDeleteChirp(w http.ResponseWriter, r *http.Request) {
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	chirpId, err := uuid.Parse(r.PathValue("chirpId"))
+	if err != nil {
+		log.Printf("Error getting chirp! %v", err)
+		errorResponse(w, http.StatusBadRequest, "Could not use chirp id")
+		return
+
+	}
+
+	chirp, err := cfg.dbQueries.GetChirp(r.Context(), chirpId)
+	if err != nil {
+		log.Printf("Error getting chirp! %v", err)
+		errorResponse(w, http.StatusNotFound, "Unable to retrieve chirp")
+		return
+	}
+
+	if chirp.UserID != userId {
+		log.Printf("Can't do that")
+		errorResponse(w, http.StatusForbidden, "Unable to delete chirp")
+		return
+
+	}
+	args := database.DeleteChirpParams{
+		ID:     chirpId,
+		UserID: userId,
+	}
+	err = cfg.dbQueries.DeleteChirp(r.Context(), args)
+	if err != nil {
+		log.Printf("Error deleting chirp! %v", err)
+		errorResponse(w, http.StatusInternalServerError, "Unable to retrieve chirp")
+		return
+	}
+
+	jsonResponse(w, http.StatusNoContent, struct{}{})
+}
+
 func badWordReplacement(s string) string {
 	badWords := []string{"kerfuffle", "sharbert", "fornax"}
 	var cleanWords []string

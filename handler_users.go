@@ -64,6 +64,59 @@ func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
 	jsonResponse(w, http.StatusCreated, responseUser)
 }
 
+func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) {
+	requestParams := struct {
+		Password string `json:"password"`
+		Email    string `json:"email"`
+	}{}
+
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&requestParams); err != nil {
+		log.Printf("Error decoding request body: %v", err)
+		errorResponse(w, http.StatusBadRequest, "email is not usable")
+		return
+	}
+
+	hashedPassword, err := auth.HashPassword(requestParams.Password)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Cannot handle that password")
+		return
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	params := database.UpdateUserParams{
+		ID:             userId,
+		Email:          requestParams.Email,
+		HashedPassword: sql.NullString{String: hashedPassword, Valid: true},
+	}
+
+	user, err := cfg.dbQueries.UpdateUser(r.Context(), params)
+	if err != nil {
+		log.Printf("User update failed :: %v", err)
+		errorResponse(w, http.StatusInternalServerError, "Cannot update user")
+		return
+	}
+
+	responseUser := User{
+		ID:        user.ID,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+		Email:     user.Email,
+	}
+
+	jsonResponse(w, http.StatusOK, responseUser)
+}
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	requestParams := struct {
 		Password string `json:"password"`
