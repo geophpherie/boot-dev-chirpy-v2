@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -13,11 +15,12 @@ import (
 )
 
 type User struct {
-	ID        uuid.UUID `json:"id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Email     string    `json:"email"`
-	Token     string    `json:"token,omitempty"`
+	ID           uuid.UUID `json:"id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+	Email        string    `json:"email"`
+	Token        string    `json:"token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
 }
 
 func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
@@ -63,21 +66,11 @@ func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
 
 func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	requestParams := struct {
-		Password  string `json:"password"`
-		Email     string `json:"email"`
-		ExpiresIn *int   `json:"expires_in_seconds"`
+		Password string `json:"password"`
+		Email    string `json:"email"`
 	}{}
 
-	var expiresIn time.Duration
-	if requestParams.ExpiresIn != nil {
-		expiresIn = min(
-			time.Duration(*requestParams.ExpiresIn)*time.Second,
-			time.Duration(60)*time.Second,
-		)
-	} else {
-		expiresIn = time.Duration(60) * time.Second
-
-	}
+	expiresIn := time.Duration(60) * time.Second
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&requestParams); err != nil {
@@ -104,19 +97,95 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token, err := auth.MakeJWT(user.ID, cfg.secret, expiresIn)
-
 	if err != nil {
 		errorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
 		return
 	}
 
+	refreshToken, err := auth.MakeRefreshToken()
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	// need to store token
+	expiration := time.Now().Add(time.Duration(60) * time.Duration(24) * time.Hour)
+	args := database.CreateRefreshTokenParams{
+		Token:     refreshToken,
+		CreatedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		UpdatedAt: sql.NullTime{Time: time.Now(), Valid: true},
+		UserID:    user.ID,
+		ExpiresAt: sql.NullTime{Time: expiration, Valid: true},
+		RevokedAt: sql.NullTime{Valid: false},
+	}
+	cfg.dbQueries.CreateRefreshToken(r.Context(), args)
+
 	responseUser := User{
-		ID:        user.ID,
-		CreatedAt: user.CreatedAt,
-		UpdatedAt: user.UpdatedAt,
-		Email:     user.Email,
-		Token:     token,
+		ID:           user.ID,
+		CreatedAt:    user.CreatedAt,
+		UpdatedAt:    user.UpdatedAt,
+		Email:        user.Email,
+		Token:        token,
+		RefreshToken: refreshToken,
 	}
 
 	jsonResponse(w, http.StatusOK, responseUser)
+}
+
+func (cfg *apiConfig) handlerRefresh(w http.ResponseWriter, r *http.Request) {
+	refreshToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userId, err := cfg.dbQueries.GetUserFromRefreshToken(r.Context(), refreshToken)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	expiresIn := time.Duration(60) * time.Second
+	newToken, err := auth.MakeJWT(userId, cfg.secret, expiresIn)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "Incorrect email or password")
+		return
+	}
+
+	jsonResponse(w, http.StatusOK, struct {
+		Token string `json:"token"`
+	}{Token: newToken})
+
+}
+
+func (cfg *apiConfig) handlerRevoke(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		// Handle error reading the body
+		fmt.Println("a")
+		http.Error(w, "Request body is empty", http.StatusBadRequest)
+		return
+	}
+
+	if len(body) != 0 {
+		// Body is empty
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	refreshToken, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		fmt.Println("a")
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	err = cfg.dbQueries.RevokeRefreshToken(r.Context(), refreshToken)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	jsonResponse(w, http.StatusNoContent, struct{}{})
+
 }

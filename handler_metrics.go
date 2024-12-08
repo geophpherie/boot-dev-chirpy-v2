@@ -42,6 +42,18 @@ func (cfg *apiConfig) handlerReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = cfg.dbQueries.DeleteAllChirps(r.Context())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Could not delete all chirps!")
+		return
+	}
+
+	err = cfg.dbQueries.DeleteAllRefreshTokens(r.Context())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, "Could not delete all users!")
+		return
+	}
+
 	w.Header().Add("Content-Type", "text/plain: charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(fmt.Sprintf("Hits: %v", cfg.fileserverHits.Load())))
