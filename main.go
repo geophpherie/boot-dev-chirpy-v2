@@ -21,7 +21,10 @@ func main() {
 
 	dbQueries := database.New(db)
 
-	config := apiConfig{dbQueries: *dbQueries}
+	config := apiConfig{
+		dbQueries: *dbQueries,
+		secret:    os.Getenv("SECRET"),
+	}
 
 	mux := http.NewServeMux()
 

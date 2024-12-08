@@ -9,20 +9,32 @@ import (
 	"strings"
 	"time"
 
+	"github.com/geophpherie/boot-dev-chirpy-v2/internal/auth"
 	"github.com/geophpherie/boot-dev-chirpy-v2/internal/database"
 	"github.com/google/uuid"
 )
 
 func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 	requestParams := struct {
-		Body   string    `json:"body"`
-		UserId uuid.UUID `json:"user_id"`
+		Body string `json:"body"`
 	}{}
 
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&requestParams); err != nil {
 		log.Printf("Error decoding request body: %v", err)
 		errorResponse(w, http.StatusInternalServerError, "Error decoding request body")
+		return
+	}
+
+	token, err := auth.GetBearerToken(r.Header)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	userId, err := auth.ValidateJWT(token, cfg.secret)
+	if err != nil {
+		errorResponse(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
@@ -36,7 +48,7 @@ func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 
 	args := database.CreateChirpParams{
 		Body:   cleanChirp,
-		UserID: requestParams.UserId,
+		UserID: userId,
 	}
 
 	chirp, err := cfg.dbQueries.CreateChirp(r.Context(), args)
