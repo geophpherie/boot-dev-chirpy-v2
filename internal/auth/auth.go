@@ -14,6 +14,7 @@ import (
 )
 
 var ErrNoBearerToken = errors.New("no bearer token found")
+var ErrNoApiKey = errors.New("no api key found")
 
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -79,6 +80,19 @@ func GetBearerToken(headers http.Header) (string, error) {
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	if token == "" {
 		return "", ErrNoBearerToken
+	}
+	return token, nil
+}
+
+func GetAPIKey(headers http.Header) (string, error) {
+	authHeader := headers.Get("Authorization")
+	if authHeader == "" {
+		return "", ErrNoApiKey
+	}
+
+	token := strings.TrimPrefix(authHeader, "ApiKey ")
+	if token == "" {
+		return "", ErrNoApiKey
 	}
 	return token, nil
 }

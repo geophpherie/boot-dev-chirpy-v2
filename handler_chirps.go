@@ -76,11 +76,31 @@ func (cfg *apiConfig) handlerNewChirp(w http.ResponseWriter, r *http.Request) {
 }
 
 func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request) {
-	chirps, err := cfg.dbQueries.GetAllChirps(r.Context())
-	if err != nil {
-		log.Printf("Error getting all chirps! %v", err)
-		errorResponse(w, http.StatusInternalServerError, "Could not retrieve all chirps.")
-		return
+	q_user_id := r.URL.Query().Get("author_id")
+	q_sort := r.URL.Query().Get("sort")
+
+	var chirps []database.Chirp
+	var err error
+	if q_user_id == "" {
+		chirps, err = cfg.dbQueries.GetAllChirps(r.Context())
+		if err != nil {
+			log.Printf("Error getting all chirps! %v", err)
+			errorResponse(w, http.StatusInternalServerError, "Could not retrieve all chirps.")
+			return
+		}
+	} else {
+		userId, err := uuid.Parse(q_user_id)
+		if err != nil {
+			errorResponse(w, http.StatusInternalServerError, "Unknown user")
+			return
+
+		}
+		chirps, err = cfg.dbQueries.GetAllChirpsByUserId(r.Context(), userId)
+		if err != nil {
+			log.Printf("Error getting all chirps! %v", err)
+			errorResponse(w, http.StatusInternalServerError, "Could not retrieve all chirps.")
+			return
+		}
 	}
 
 	type chirpResponse struct {
@@ -92,6 +112,11 @@ func (cfg *apiConfig) handlerGetAllChirps(w http.ResponseWriter, r *http.Request
 	}
 
 	response := []chirpResponse{}
+
+	// chirps come back sorted ASC, so only change to DESC if it's given
+	if q_sort == "desc" {
+		slices.Reverse(chirps)
+	}
 
 	for _, chirp := range chirps {
 		r := chirpResponse{

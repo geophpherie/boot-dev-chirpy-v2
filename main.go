@@ -47,6 +47,8 @@ func main() {
 	mux.HandleFunc("POST /api/refresh", config.handlerRefresh)
 	mux.HandleFunc("POST /api/revoke", config.handlerRevoke)
 
+	mux.HandleFunc("POST /api/polka/webhooks", config.handlerWebhooks)
+
 	server := http.Server{
 		Handler: mux,
 		Addr:    ":8080"}

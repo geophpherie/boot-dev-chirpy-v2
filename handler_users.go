@@ -21,6 +21,7 @@ type User struct {
 	Email        string    `json:"email"`
 	Token        string    `json:"token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"`
+	IsRed        bool      `json:"is_chirpy_red"`
 }
 
 func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
@@ -59,6 +60,7 @@ func (cfg *apiConfig) handlerNewUser(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		IsRed:     user.IsChirpyRed,
 	}
 
 	jsonResponse(w, http.StatusCreated, responseUser)
@@ -113,6 +115,7 @@ func (cfg *apiConfig) handlerUpdateUser(w http.ResponseWriter, r *http.Request) 
 		CreatedAt: user.CreatedAt,
 		UpdatedAt: user.UpdatedAt,
 		Email:     user.Email,
+		IsRed:     user.IsChirpyRed,
 	}
 
 	jsonResponse(w, http.StatusOK, responseUser)
@@ -180,6 +183,7 @@ func (cfg *apiConfig) handlerLogin(w http.ResponseWriter, r *http.Request) {
 		Email:        user.Email,
 		Token:        token,
 		RefreshToken: refreshToken,
+		IsRed:        user.IsChirpyRed,
 	}
 
 	jsonResponse(w, http.StatusOK, responseUser)
